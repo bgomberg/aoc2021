@@ -13,14 +13,11 @@ enum ProbeStatus {
 }
 
 class Probe {
-  public startingVelocity: number[];
   public x = 0;
   public y = 0;
   public maxY = -Infinity;
   public status: ProbeStatus = ProbeStatus.UNKNOWN;
-  constructor(private target: Target, private velocityX: number, private velocityY: number) {
-    this.startingVelocity = [velocityX, velocityY];
-  }
+  constructor(private target: Target, private velocityX: number, private velocityY: number) {}
 
   public step(): boolean {
     if (this.status != ProbeStatus.UNKNOWN) {
@@ -50,41 +47,47 @@ class Probe {
   }
 }
 
-function part1(target: Target) {
-  let bestProbe = undefined;
-  for (let x = 0; x < target.x2; x++) {
-    for (let y = 0; y < 1000; y++) {
+function getValidProbes(target: Target): Probe[] {
+  // Can find the max X position for a given starting velocity X with using n(n+1)/2
+  // Solving this for the minimum starting velocity gives the following equation
+  const minX = Math.floor((Math.sqrt(1 + 4 * target.x1) - 1) / 2);
+  // The starting velocity can't be more than x2 since we'd jump right over it on the first step
+  // otherwise
+  const maxX = target.x2;
+  // y1 and y2 are both negative, so the Y velocity can't be less than y1 or else we'd jump
+  // right over the target on the first step
+  const minY = target.y1;
+  // y1 and y2 are both negative, and if the starting Y velocity is positive, it'll always go
+  // through y=0 on the way down at the inverse of the starting speed, which puts an upper
+  // bound on it based on what it can be to not jump over the target on the way down
+  const maxY = -target.y1;
+  let result = [];
+  for (let x = minX; x <= maxX; x++) {
+    for (let y = minY; y <= maxY; y++) {
       let probe = new Probe(target, x, y);
       while (!probe.step());
       if (probe.status == ProbeStatus.IN_TARGET) {
-        if (!bestProbe || bestProbe.maxY < probe.maxY) {
-          bestProbe = probe;
-        }
+        result.push(probe);
       }
     }
   }
-  console.log(`Part 1: ${bestProbe!.maxY}`);
+  return result;
 }
 
-function part2(target: Target) {
-  let numHit = 0;
-  for (let x = 0; x <= target.x2; x++) {
-    for (let y = target.y1; y < 10000; y++) {
-      let probe = new Probe(target, x, y);
-      while (!probe.step());
-      if (probe.status == ProbeStatus.IN_TARGET) {
-        numHit++;
-      }
-    }
-  }
-  console.log(`Part 2: ${numHit}`);
+function part1(probes: Probe[]) {
+  let maxY = Math.max(...probes.map(probe => probe.maxY));
+  console.log(`Part 1: ${maxY}`);
+}
+
+function part2(probes: Probe[]) {
+  console.log(`Part 2: ${probes.length}`);
 }
 
 readFileLines("input/day17.txt", (lines: string[]) => {
   let matches = [...lines[0].match(/target area: x=(\-?[0-9]+)..(\-?[0-9]+), y=(\-?[0-9]+)..(\-?[0-9]+)/)!];
   matches.shift();
-  let [x1, x2, y1, y2] = matches.map(Number);
-  let target = new Target(x1, x2, y1, y2);
-  part1(target);
-  part2(target);
+  let target = new Target(...(matches.map(Number) as [number, number, number, number]));
+  let probes = getValidProbes(target);
+  part1(probes);
+  part2(probes);
 });
